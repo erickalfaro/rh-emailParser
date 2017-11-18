@@ -33,10 +33,7 @@ function parseEmailMessages() {
           msgDt = eachMsg.getDate();
       
       //check if email id already exists in spreadsheet
-      if(isInArray(array, msgId))
-      {
-      }
-      else
+      if(!isInArray(array, msgId))
       {
         if (content) {//we use regex to parse specific information
           

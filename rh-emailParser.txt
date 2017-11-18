@@ -1,0 +1,73 @@
+function main() {
+  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Parsed").getRange("I1").setValue(new Date());
+  parseEmailMessages()
+  SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Parsed").getRange("K1").setValue(new Date());
+}
+
+function isInArray(array, search)
+{
+  return array.indexOf(search) >= 0;
+}
+
+function parseEmailMessages() {
+  
+  var searchResult = GmailApp.search('from:"notifications@robinhood.com" "order" "shares" "executed" {buy sell} -"We will notify you when this order has been" -"partially" ');
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Parsed");
+  var objArray = sheet.getRange("A:A").getValues();
+  //get array of existing parsed emails so to prevent duplicates when rerunning script
+  var array = objArray.join().split(',').filter(Boolean);
+  
+  //iterate through each email in search results
+  for (var i = 0; i < searchResult.length; i++) {
+    
+    var tmp,message = searchResult[i].getMessages();
+    //iterate through each thread in each email
+    for (var j = 0; j < message.length; j++) {
+      
+      //get i email j thread
+      var eachMsg = searchResult[i].getMessages()[j];
+      var subject = eachMsg.getSubject(),
+          content = eachMsg.getPlainBody(),
+          msgId = eachMsg.getId(),
+          msgDt = eachMsg.getDate();
+      
+      //check if email id already exists in spreadsheet
+      if(isInArray(array, msgId))
+      {
+      }
+      else
+      {
+        if (content) {//we use regex to parse specific information
+          
+          tmp = content.match(/\s(\d*)\s(?:share)/);
+          var shares = (tmp && tmp[1]) ? tmp[1].trim() : 'Error';
+          
+          tmp = content.match(/(?:\sof\s)([A-Z]*)(?:\swas)/);
+          var equity = (tmp && tmp[1]) ? tmp[1].trim() : 'Error';
+          
+          tmp = content.match(/(buy|sell)(?:\s(\d*)\s)(?:share)/);
+          var position  = (tmp && tmp[1]) ? tmp[1] : 'Error';
+          
+          tmp = content.match(/(?:\$)(\d*\.\d+)/);
+          var price  = (tmp && tmp[1]) ? tmp[1] : 'Error';
+          
+          /* Edit: Partial shares cannot be parsed. They are also excluded from original email search. 
+          tmp = content.match(/(?:\n)(\d*)\s(?:share)/);
+          var partialShares = (tmp && tmp[1]) ? tmp[1].trim() : 'Error';
+          //If partial order detected then use partial order size else use actual order size
+          shares = (partialShares=='Error') ? shares : partialShares.trim();
+          
+          //If partial order is executed you get 1 email with partial order size. If the remaining full order is executed you get another email with full order size not excluding partial order.
+          //This causes duplication of shares for partial orders. 
+          */
+          
+          sheet.appendRow([msgId, msgDt, equity, position, shares, price]);
+        } 
+      }
+    }
+  }
+}
+
+
+
+
